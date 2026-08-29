@@ -1,0 +1,21 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: shangrilla_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-shangrilla}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      POSTGRES_DB: ${POSTGRES_DB:-shangrilla_rag}
+    ports:
+      - "5432:5432"
+    volumes:
+      - shangrilla_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-shangrilla}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  shangrilla_pgdata:
