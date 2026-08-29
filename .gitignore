@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+*.egg-info/
+.pytest_cache/
+.DS_Store
+
+# Backstop only - real documents should never be inside this repo tree
+# to begin with (see SHANGRILLA_DATA_ROOT in .env.example)
+data/
+shangrilla-data/

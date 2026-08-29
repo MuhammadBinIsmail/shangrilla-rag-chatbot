@@ -1,0 +1,31 @@
+[project]
+name = "shangrilla-rag"
+version = "0.1.0"
+description = "Enterprise RAG chatbot over Shangrilla Foods SAP FSD/TSD documentation"
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic>=2.7",
+    "pydantic-settings>=2.3",
+    "pyyaml>=6.0",
+    "python-dotenv>=1.0",
+]
+
+# Deps land incrementally, matching the milestone that needs them -
+# not all pulled in up front:
+#   M2 (ingestion):  python-docx, pymupdf, pdfplumber, openpyxl
+#   M3 (vectors):     google-genai, sqlalchemy, psycopg[binary], pgvector
+#   M5 (sessions):    (uses the same sqlalchemy/psycopg from M3)
+#   M6 (api):         fastapi, uvicorn
+#   M7 (ui):          chainlit
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
