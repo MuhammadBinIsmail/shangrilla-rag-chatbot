@@ -10,9 +10,14 @@ final state).
 
 ## Status
 
-M1 in progress: configuration, metadata schema, and ID normalization are
-in place and tested. Ingestion pipeline (file discovery, loaders, chunking)
-is next.
+Configuration & Metadata Schema: done, tested.
+Document Discovery & Loaders: done, tested against synthetic fixtures
+matching real cross-module samples - **not yet run against the actual
+Shangrilla files**. Do that early once this is set up; PDF/docx text
+extraction can behave differently on real files than on the synthetic
+ones used here.
+
+Next: Chunking & Vector Indexing.
 
 ## Local setup
 
