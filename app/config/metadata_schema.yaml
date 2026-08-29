@@ -1,0 +1,81 @@
+# Field mapping for FSD/TSD metadata extraction.
+#
+# Validated against real samples from all seven modules (CO, FI, MM, PP,
+# QM, TM, WM) - see docs/architecture.md, "Round 4", for the evidence
+# behind each choice below. This file is the reason the ingestion pipeline
+# doesn't need per-module branching: differences between modules are data
+# here, not code.
+
+doc_types:
+  FSD:
+    format: label_value_lines # "LABEL: <value>", one per line
+    fields:
+      wricef_id:
+        label: "WRICEF ID"
+        required: true # the only field reliable across all seven modules
+      lob:
+        label: "LOB"
+        required: false # free text; NOT a reliable proxy for `module`
+                         # (MM's LOB was "TRANSFER POSTING", a process name)
+      process:
+        label: "PROCESS"
+        required: false # can be blank (QM sample); not validated against
+                         # workpackage or wricef_id (PP sample shows all
+                         # three can differ)
+      workpackage:
+        label: "WORKPACKAGE"
+        required: false
+      short_title:
+        # unlabeled bracketed line that sometimes follows WRICEF ID.
+        # Present: MM, PP, QM, TM, WM samples. Absent: CO, FI samples.
+        label: null
+        position: after_wricef_id
+        required: false
+
+  TSD:
+    format: label_value_table # 2-label-pair rows; needs pdfplumber's
+                                # table extraction, not plain text (see
+                                # architecture doc, PDF loader row)
+    stable_fields:
+      # These six + title appeared in every sample, in every module.
+      wricef_id:     {label: "WRICEF ID",   required: true}
+      object_type:   {label: "Object Type", required: true}
+      sap_module:    {label: "SAP Module",  required: true}
+      complexity:    {label: "Complexity",  required: true}
+      project_code:  {label: "Project Code", required: true}
+      landscape:     {label: "Landscape",   required: true}
+    title:
+      position: between_heading_and_table
+      required: true
+    catch_all_field: technical_details
+      # Everything else the table contains (BAdI Name, Program, T-Code,
+      # Adobe Form, Process, Transaction Code, Custom Table, ...) goes
+      # here as a flexible dict instead of fixed columns. These labels
+      # vary by Object Type, not by module - a fixed field list broke
+      # on FI/MM/PP/QM/TM/WM having different label sets.
+
+# Extension -> doc type routing
+file_types:
+  ".docx": FSD
+  ".pdf": TSD
+  ".xlsx": FSD
+    # Unverified structure. Some observed filenames (Purchase_Order.xlsx,
+    # "Logic - FSD - QM.xlsx", the GATE PASS WRICEF workbooks) look like
+    # working/reference files rather than the standard FSD template -
+    # expect some of these to legitimately fail metadata validation.
+    # That is correct behavior (see ingestion status/skip-report design),
+    # not a bug to work around.
+  ".zip": UNPACK
+    # Not a document type - pre-extraction step. Contents re-enter
+    # normal discovery/routing after unpacking.
+
+# Anything else encountered during discovery: logged to the skip-report,
+# not ingested, not a pipeline failure.
+
+# ID normalization - prevents formatting variants of the same WRICEF ID
+# (e.g. "MM_E_007" vs "MM-E-007", a real collision found in the MM TSD
+# corpus) from being treated as two different documents.
+id_normalization:
+  lowercase: true
+  separator: "-" # unifies "_", ".", and internal whitespace
+  strip_chars: ["<", ">"] # plus surrounding whitespace, always stripped
