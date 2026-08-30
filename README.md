@@ -11,10 +11,17 @@ final state).
 ## Status
 
 Configuration & Metadata Schema: done, tested.
-Document Discovery & Loaders: done, tested against synthetic fixtures.
-Ingestion validation script (`scripts/validate_ingestion.py`): done -
-run this against your real `SHANGRILLA_DATA_ROOT` before trusting
-anything built on top of ingestion.
+Document Discovery & Loaders: done, tested against synthetic fixtures
+**and validated against the real corpus**. One real bug found and
+fixed: TSD metadata extraction originally assumed a 2D table layout
+needing pdfplumber; a real file proved PyMuPDF's plain text extraction
+already gives a clean single-column label/value sequence, no table
+detection needed. See docs/architecture.md for the diagnostic.
+
+Known real-data findings (not code bugs, need manual review):
+a few source documents have internal WRICEF ID fields that don't match
+their filenames (see architecture doc) - flagged by the collision
+detector, worth checking with whoever maintains the SAP docs.
 
 Next: Chunking & Vector Indexing.
 
