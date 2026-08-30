@@ -1,9 +1,9 @@
 from pathlib import Path
 
 from app.config.schema_loader import load_schema, tsd_stable_field_config
-from app.ingestion.loaders.common import parse_alternating_label_value_pairs
+from app.ingestion.loaders.common import parse_alternating_label_value_pairs, parse_label_value_table
 from app.ingestion.loaders.tsd_loader import extract_title, load_tsd_metadata
-from tests.fixtures import write_tsd_pdf
+from tests.fixtures import write_tsd_pdf, write_tsd_pdf_grid
 
 
 def test_matches_real_tm_f_0008_diagnostic_output():
@@ -126,3 +126,46 @@ def test_tsd_missing_wricef_id_returns_none(tmp_path: Path):
         field_pairs=[("Some Field", "Some Value")],
     )
     assert load_tsd_metadata(path) is None
+
+
+def test_matches_real_pp_i_005_grid_style_diagnostic():
+    """Real corpus file: grid-style table, with a value wrapped
+    across two lines (ZHU_PP_WORK_CENTER_MACHI / NE). Single-column
+    parsing misaligns on this; table parsing handles it correctly."""
+    schema = load_schema()
+    stable_config = tsd_stable_field_config(schema)
+
+    # exact pdfplumber extract_tables() output from the real file
+    table_rows = [
+        ["WRICEF ID", "PP-I-005", "Object Type", "Interface (Table-Control Screen)"],
+        ["SAP Module", "Production Planning (PP)", "Program Name", "ZHU_PP_WORK_CENTER_MACHI\nNE"],
+        ["T-Code", "ZPP_WC", "Complexity", "High"],
+        ["Project Code", "1073", "Landscape", "S/4HANA Private Cloud (DS4)"],
+    ]
+    stable, technical_details = parse_label_value_table(table_rows, stable_config)
+
+    assert stable["wricef_id"] == "PP-I-005"
+    assert stable["complexity"] == "High"
+    assert stable["landscape"] == "S/4HANA Private Cloud (DS4)"
+    assert technical_details["Program Name"] == "ZHU_PP_WORK_CENTER_MACHI NE"
+
+
+def test_grid_layout_falls_back_to_table_extraction(tmp_path: Path):
+    """End-to-end: single-column parsing can't align this (a wrapped
+    value), so load_tsd_metadata must fall back to table extraction."""
+    path = tmp_path / "grid_style.pdf"
+    write_tsd_pdf_grid(
+        path,
+        title="Work Center - Machine (Plant) Interface",
+        table_rows=[
+            ["WRICEF ID", "PP-I-005", "Object Type", "Interface (Table-Control Screen)"],
+            ["SAP Module", "Production Planning (PP)", "Program Name", "ZHU_PP_WORK_CENTER_MACHINE"],
+            ["T-Code", "ZPP_WC", "Complexity", "High"],
+            ["Project Code", "1073", "Landscape", "S/4HANA Private Cloud (DS4)"],
+        ],
+    )
+    metadata = load_tsd_metadata(path)
+    assert metadata is not None
+    assert metadata.wricef_id == "PP-I-005"
+    assert metadata.complexity == "High"
+    assert metadata.landscape == "S/4HANA Private Cloud (DS4)"
