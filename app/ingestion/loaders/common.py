@@ -1,9 +1,6 @@
-"""Generic, config-driven metadata parsers shared by the FSD and TSD
-loaders. These don't know anything about docx/pdf/xlsx specifically -
-they operate on already-extracted lines or table rows, which is what
-lets the same two functions cover all seven modules without per-module
-branching.
-"""
+"""Generic, config-driven metadata parsers shared by FSD and TSD loaders.
+ They process extracted lines or table rows, allowing the same 
+ parsers to support all seven modules without module-specific branching."""
 from __future__ import annotations
 
 import re
@@ -20,10 +17,8 @@ def clean_value(raw: str) -> str:
 def parse_label_value_lines(
     lines: list[str], field_config: dict[str, dict]
 ) -> dict[str, str | None]:
-    """Parse FSD-style 'LABEL: <value>' lines into a dict keyed by the
-    config's field names. Fields not found are set to None rather than
-    raising - real samples show PROCESS/WORKPACKAGE can be blank or the
-    line absent entirely (QM's sample)."""
+    """Parses FSD-style 'LABEL: <value>' lines into a dict using configured 
+    field names. Missing or blank fields are set to None instead of raising an error."""
     extracted: dict[str, str | None] = {name: None for name in field_config}
     label_to_field = {
         cfg["label"].strip().lower(): name
@@ -55,19 +50,60 @@ def parse_label_value_lines(
     return extracted
 
 
+def parse_alternating_label_value_pairs(
+    lines: list[str], stable_field_config: dict[str, dict]
+) -> tuple[dict[str, str | None], dict[str, str]]:
+    """Parses TSD metadata from PyMuPDF plain text, where fields appear as
+    label/value pairs in order. The metadata block is located between the
+    WRICEF ID and Landscape labels, avoiding unreliable table extraction."""
+    stable: dict[str, str | None] = {name: None for name in stable_field_config}
+    label_to_field = {
+        cfg["label"].strip().lower(): name for name, cfg in stable_field_config.items()
+    }
+    technical_details: dict[str, str] = {}
+
+    wricef_label = stable_field_config["wricef_id"]["label"].strip().lower()
+    landscape_label = stable_field_config["landscape"]["label"].strip().lower()
+
+    cleaned = [l.strip() for l in lines if l.strip()]
+
+    start_idx = next(
+        (i for i, l in enumerate(cleaned) if l.lower() == wricef_label), None
+    )
+    if start_idx is None:
+        return stable, technical_details
+
+    end_idx = next(
+        (
+            i
+            for i in range(start_idx, len(cleaned))
+            if cleaned[i].lower() == landscape_label
+        ),
+        None,
+    )
+    if end_idx is None or end_idx + 1 >= len(cleaned):
+        return stable, technical_details
+
+    block = cleaned[start_idx : end_idx + 2]  # include landscape's value line
+
+    for i in range(0, len(block) - 1, 2):
+        label, value = block[i], block[i + 1]
+        field_name = label_to_field.get(label.lower())
+        value_clean = clean_value(value)
+        if field_name:
+            stable[field_name] = value_clean or None
+        elif value_clean:
+            technical_details[label] = value_clean
+
+    return stable, technical_details
+
+
 def parse_label_value_table(
     rows: list[list[str | None]], stable_field_config: dict[str, dict]
 ) -> tuple[dict[str, str | None], dict[str, str]]:
-    """Parse TSD-style table rows (alternating label/value cells) into
-    the stable named fields plus a catch-all dict for everything else.
-
-    Real TSD tables vary in row count (4 rows in most modules, 5 in
-    TM's sample) and in which labels appear beyond the stable set
-    (BAdI Name, Program, T-Code, Adobe Form, Process, ...) - which is
-    exactly why only the stable fields get named columns; everything
-    else lands in the catch-all rather than breaking on an unexpected
-    label.
-    """
+    """Superseded by parse_alternating_label_value_pairs. Kept as a reusable
+    primitive for future document types with clean 2D grid layouts, but not
+    used by the TSD loader based on the real-corpus diagnostic findings."""
     stable: dict[str, str | None] = {name: None for name in stable_field_config}
     label_to_field = {
         cfg["label"].strip().lower(): name for name, cfg in stable_field_config.items()

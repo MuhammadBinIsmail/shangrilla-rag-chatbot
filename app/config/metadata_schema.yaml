@@ -33,9 +33,13 @@ doc_types:
         required: false
 
   TSD:
-    format: label_value_table # 2-label-pair rows; needs pdfplumber's
-                                # table extraction, not plain text (see
-                                # architecture doc, PDF loader row)
+    format: label_value_alternating # single-column: label line, then
+                                      # its value line, repeating -
+                                      # confirmed against real PDF text
+                                      # extraction (PyMuPDF), NOT a 2D
+                                      # grid needing table detection
+                                      # (an earlier assumption that
+                                      # real data disproved)
     stable_fields:
       # These six + title appeared in every sample, in every module.
       wricef_id:     {label: "WRICEF ID",   required: true}
