@@ -1,12 +1,6 @@
-"""File discovery.
-
-Walks SHANGRILLA_DATA_ROOT (one subfolder per Module), extracts any .zip
-archives into a staging area first, then classifies every file by
-extension using the metadata_schema.yaml file_types map. Anything that
-isn't a known module folder or a known extension is reported, not
-ingested, and does not stop the run - matches the architecture doc's
-"log-and-skip, don't fail the batch" design.
-"""
+"""Discovers files under SHANGRILLA_DATA_ROOT, extracts ZIP archives to staging,
+ and classifies files using the metadata_schema.yaml file_types map. 
+ Unknown modules or extensions are reported and skipped without stopping the ingestion run."""
 from __future__ import annotations
 
 import shutil
@@ -64,13 +58,9 @@ def _unpack_zips(root: Path, staging_root: Path) -> None:
 
 
 def discover(root: Path | str, schema_path: Path = _SCHEMA_PATH) -> DiscoveryReport:
-    """Walk `root`, unpack any zips, and classify every file found.
-
-    `root` is expected to contain one subfolder per Module (CO/FI/MM/...).
-    Files outside a known module folder, or with an unrecognized
-    extension, are recorded in the report's `skipped` list rather than
-    raising - a single bad file never aborts the whole run.
-    """
+    """Walks the root folder, unpacks ZIP files, and classifies discovered files. 
+    Files outside known module folders or with unsupported extensions are added to 
+    `skipped` instead of raising an error."""
     root = Path(root)
     file_type_map = _load_file_type_map(schema_path)
     known_modules = {m.value for m in Module}
@@ -91,6 +81,9 @@ def discover(root: Path | str, schema_path: Path = _SCHEMA_PATH) -> DiscoveryRep
                 continue
             if path.suffix.lower() == ".zip":
                 continue  # already unpacked above; not reported as unknown
+            if path.name.startswith("~$"):
+                skipped.append((path, "Office lock file, not a real document"))
+                continue
 
             try:
                 module_name = path.relative_to(scan_root).parts[0]

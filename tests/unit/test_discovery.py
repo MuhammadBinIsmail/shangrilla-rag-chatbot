@@ -87,3 +87,19 @@ def test_summary_reports_counts(tmp_path: Path):
     summary = report.summary()
     assert "Discovered 1 file(s)" in summary
     assert "Skipped 1 file(s)" in summary
+
+
+def test_office_lock_file_is_skipped_with_a_clear_reason(tmp_path: Path):
+    """A real case: '~$Logic.xlsx' is a temporary lock file Excel
+    creates while 'Logic.xlsx' is open, not a real document. It's not
+    even a valid zip container, so attempting to load it as xlsx
+    raises BadZipFile - this must be filtered at discovery instead."""
+    root = tmp_path / "data"
+    _touch(root / "QM" / "~$Logic.xlsx")
+
+    report = discover(root)
+
+    assert len(report.discovered) == 0
+    assert len(report.skipped) == 1
+    _, reason = report.skipped[0]
+    assert "Office lock file" in reason
