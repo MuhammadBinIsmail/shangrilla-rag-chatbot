@@ -1,28 +1,81 @@
 from pathlib import Path
 
-from reportlab.lib.pagesizes import letter
-from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.platypus import Paragraph, SimpleDocTemplate
-
-from app.ingestion.loaders.tsd_loader import load_tsd_metadata
+from app.config.schema_loader import load_schema, tsd_stable_field_config
+from app.ingestion.loaders.common import parse_alternating_label_value_pairs
+from app.ingestion.loaders.tsd_loader import extract_title, load_tsd_metadata
 from tests.fixtures import write_tsd_pdf
 
 
-def _write_tsd_pdf(path: Path, title: str, table_rows: list[list[str]]) -> None:
-    write_tsd_pdf(path, title, table_rows)
+def test_matches_real_tm_f_0008_diagnostic_output():
+    """Exact line sequence from PyMuPDF's real extraction of
+    TM_F_0008_Transporter_Expense_Booking_Report_TSD.pdf - the file
+    that proved the original pdfplumber-table-based design wrong for
+    real data. This is the strongest possible regression test: not
+    synthetic, the actual evidence."""
+    lines = [
+        "SHANGRILA FOODS (PRIVATE) LIMITED",
+        "The Food Experts!",
+        "TECHNICAL SPECIFICATION",
+        "DOCUMENT",
+        "TM - Transporter Expense Booking Report (Freight Expense Booking)",
+        "WRICEF ID",
+        "TM_F_0008",
+        "Object Type",
+        "Report (Adobe Form Output)",
+        "SAP Module",
+        "Transportation Management (TM)",
+        "Program Name",
+        "ZDRPG_TM_0008",
+        "Transaction Code",
+        "ZTM_TRANSPORT_EXP",
+        "Adobe Form",
+        "ZAF_TM_0008",
+        "Complexity",
+        "Medium",
+        "Project Code",
+        "1073",
+        "Landscape",
+        "S/4HANA Private Cloud (DS4)",
+        "TMC Project Manager",
+        "Customer Project Manager",
+    ]
+    schema = load_schema()
+    stable_config = tsd_stable_field_config(schema)
+
+    title = extract_title(lines)
+    stable, technical_details = parse_alternating_label_value_pairs(lines, stable_config)
+
+    assert title == "TM - Transporter Expense Booking Report (Freight Expense Booking)"
+    assert stable["wricef_id"] == "TM_F_0008"
+    assert stable["object_type"] == "Report (Adobe Form Output)"
+    assert stable["sap_module"] == "Transportation Management (TM)"
+    assert stable["complexity"] == "Medium"
+    assert stable["project_code"] == "1073"
+    assert stable["landscape"] == "S/4HANA Private Cloud (DS4)"
+    assert technical_details == {
+        "Program Name": "ZDRPG_TM_0008",
+        "Transaction Code": "ZTM_TRANSPORT_EXP",
+        "Adobe Form": "ZAF_TM_0008",
+    }
+    # signature block after Landscape must not leak into technical_details
+    assert "TMC Project Manager" not in technical_details
 
 
-def test_tsd_co_style_badi_labels(tmp_path: Path):
-    """CO sample: BAdI Name / T-Code / Method as the variable labels."""
+def test_tsd_co_style_badi_labels_via_pdf(tmp_path: Path):
+    """Full PDF round-trip: CO's field pattern (BAdI Name / T-Code)."""
     path = tmp_path / "co_style.pdf"
-    _write_tsd_pdf(
+    write_tsd_pdf(
         path,
         title="Restriction on Process Order Release without Cost Estimate",
-        table_rows=[
-            ["WRICEF ID", "CO-CE-001", "Object Type", "Enhancement (BAdI)"],
-            ["SAP Module", "Controlling (CO) / PP", "BAdI Name", "WORKORDER_UPDATE"],
-            ["T-Code / Method", "AT_RELEASE", "Complexity", "Medium"],
-            ["Project Code", "1073", "Landscape", "S/4HANA Private Cloud (DS4)"],
+        field_pairs=[
+            ("WRICEF ID", "CO-CE-001"),
+            ("Object Type", "Enhancement (BAdI)"),
+            ("SAP Module", "Controlling (CO)"),
+            ("BAdI Name", "WORKORDER_UPDATE"),
+            ("T-Code / Method", "AT_RELEASE"),
+            ("Complexity", "Medium"),
+            ("Project Code", "1073"),
+            ("Landscape", "S/4HANA Private Cloud (DS4)"),
         ],
     )
     metadata = load_tsd_metadata(path)
@@ -35,19 +88,23 @@ def test_tsd_co_style_badi_labels(tmp_path: Path):
     }
 
 
-def test_tsd_fi_style_different_variable_labels(tmp_path: Path):
-    """FI sample: Program / Custom Table instead of BAdI Name / T-Code -
-    proves the same parser handles a different Object Type's labels
-    without any per-module branching."""
+def test_tsd_fi_style_different_variable_labels_via_pdf(tmp_path: Path):
+    """FI's field pattern (Program / Custom Table) - proves the same
+    parser handles a different Object Type's labels with no
+    per-module branching."""
     path = tmp_path / "fi_style.pdf"
-    _write_tsd_pdf(
+    write_tsd_pdf(
         path,
         title="Asset Allocation / Unallocation to Vendor",
-        table_rows=[
-            ["WRICEF ID", "FI-AA-024", "Object Type", "Interface / Report"],
-            ["SAP Module", "FI - Asset Accounting (AA)", "Program", "ZASSET_VENDOR_INT"],
-            ["Custom Table", "ZALLOCATIONNN", "Complexity", "Medium"],
-            ["Project Code", "1073", "Landscape", "S/4HANA Private Cloud (DS4)"],
+        field_pairs=[
+            ("WRICEF ID", "FI-AA-024"),
+            ("Object Type", "Interface / Report"),
+            ("SAP Module", "FI - Asset Accounting (AA)"),
+            ("Program", "ZASSET_VENDOR_INT"),
+            ("Custom Table", "ZALLOCATIONNN"),
+            ("Complexity", "Medium"),
+            ("Project Code", "1073"),
+            ("Landscape", "S/4HANA Private Cloud (DS4)"),
         ],
     )
     metadata = load_tsd_metadata(path)
@@ -59,41 +116,13 @@ def test_tsd_fi_style_different_variable_labels(tmp_path: Path):
     }
 
 
-def test_tsd_tm_style_five_row_table(tmp_path: Path):
-    """TM sample: a 5th table row, with Complexity/Project Code paired
-    together instead of the usual Project Code/Landscape pairing -
-    all stable fields must still resolve correctly regardless of which
-    row they land on."""
-    path = tmp_path / "tm_style.pdf"
-    _write_tsd_pdf(
+def test_tsd_missing_wricef_id_returns_none(tmp_path: Path):
+    """A PDF with no WRICEF ID anywhere is a validation failure, not
+    a crash."""
+    path = tmp_path / "no_metadata.pdf"
+    write_tsd_pdf(
         path,
-        title="TM - Transporter Expense Booking Report (Freight Expense Booking)",
-        table_rows=[
-            ["WRICEF ID", "TM_F_0008", "Object Type", "Report (Adobe Form Output)"],
-            ["SAP Module", "Transportation Management (TM)", "Program Name", "ZDRPG_TM_0008"],
-            ["Transaction Code", "ZTM_TRANSPORT_EXP", "Adobe Form", "ZAF_TM_0008"],
-            ["Complexity", "Medium", "Project Code", "1073"],
-            ["Landscape", "S/4HANA Private Cloud (DS4)", "", ""],
-        ],
+        title="Some unrelated document",
+        field_pairs=[("Some Field", "Some Value")],
     )
-    metadata = load_tsd_metadata(path)
-    assert metadata is not None
-    assert metadata.wricef_id == "TM_F_0008"
-    assert metadata.complexity == "Medium"
-    assert metadata.project_code == "1073"
-    assert metadata.landscape == "S/4HANA Private Cloud (DS4)"
-    assert metadata.technical_details == {
-        "Program Name": "ZDRPG_TM_0008",
-        "Transaction Code": "ZTM_TRANSPORT_EXP",
-        "Adobe Form": "ZAF_TM_0008",
-    }
-
-
-def test_tsd_missing_table_returns_none(tmp_path: Path):
-    """A PDF with no detectable table (e.g. a scanned or malformed
-    file) is a validation failure, not a crash."""
-    path = tmp_path / "no_table.pdf"
-    doc = SimpleDocTemplate(str(path), pagesize=letter)
-    styles = getSampleStyleSheet()
-    doc.build([Paragraph("Just some unrelated text, no table here.", styles["Normal"])])
     assert load_tsd_metadata(path) is None

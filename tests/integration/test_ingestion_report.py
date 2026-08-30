@@ -21,11 +21,15 @@ def test_full_ingestion_report_end_to_end(tmp_path: Path):
     write_tsd_pdf(
         root / "CO" / "TSD_CO-CE-001.pdf",
         title="Restriction on Process Order Release without Cost Estimate",
-        table_rows=[
-            ["WRICEF ID", "CO-CE-001", "Object Type", "Enhancement (BAdI)"],
-            ["SAP Module", "Controlling (CO)", "BAdI Name", "WORKORDER_UPDATE"],
-            ["T-Code / Method", "AT_RELEASE", "Complexity", "Medium"],
-            ["Project Code", "1073", "Landscape", "S/4HANA Private Cloud (DS4)"],
+        field_pairs=[
+            ("WRICEF ID", "CO-CE-001"),
+            ("Object Type", "Enhancement (BAdI)"),
+            ("SAP Module", "Controlling (CO)"),
+            ("BAdI Name", "WORKORDER_UPDATE"),
+            ("T-Code / Method", "AT_RELEASE"),
+            ("Complexity", "Medium"),
+            ("Project Code", "1073"),
+            ("Landscape", "S/4HANA Private Cloud (DS4)"),
         ],
     )
 
@@ -34,21 +38,27 @@ def test_full_ingestion_report_end_to_end(tmp_path: Path):
     write_tsd_pdf(
         root / "MM" / "TSD_MM_E_007_Purchasing_Group_Validation_PR.pdf",
         title="Purchasing Group Validation in PR",
-        table_rows=[
-            ["WRICEF ID", "MM_E_007", "Object Type", "Enhancement"],
-            ["SAP Module", "Materials Mgmt (MM)", "Program", "ZPG_VALIDATE"],
-            ["Complexity", "Low", "Project Code", "1073"],
-            ["Landscape", "S/4HANA Private Cloud (DS4)", "", ""],
+        field_pairs=[
+            ("WRICEF ID", "MM_E_007"),
+            ("Object Type", "Enhancement"),
+            ("SAP Module", "Materials Mgmt (MM)"),
+            ("Program", "ZPG_VALIDATE"),
+            ("Complexity", "Low"),
+            ("Project Code", "1073"),
+            ("Landscape", "S/4HANA Private Cloud (DS4)"),
         ],
     )
     write_tsd_pdf(
         root / "MM" / "TSD_-_MM-E-007_-_Single_Purchasing_Group_Validation_PR.pdf",
         title="Single Purchasing Group Validation in PR",
-        table_rows=[
-            ["WRICEF ID", "MM-E-007", "Object Type", "Enhancement"],
-            ["SAP Module", "Materials Mgmt (MM)", "Program", "ZPG_VALIDATE_V2"],
-            ["Complexity", "Low", "Project Code", "1073"],
-            ["Landscape", "S/4HANA Private Cloud (DS4)", "", ""],
+        field_pairs=[
+            ("WRICEF ID", "MM-E-007"),
+            ("Object Type", "Enhancement"),
+            ("SAP Module", "Materials Mgmt (MM)"),
+            ("Program", "ZPG_VALIDATE_V2"),
+            ("Complexity", "Low"),
+            ("Project Code", "1073"),
+            ("Landscape", "S/4HANA Private Cloud (DS4)"),
         ],
     )
 
@@ -78,3 +88,21 @@ def test_full_ingestion_report_end_to_end(tmp_path: Path):
 
     failure_names = {f.file.path.name for f in report.failures}
     assert "Purchase_Order.xlsx" in failure_names
+
+
+def test_corrupt_file_is_a_failure_not_a_crash(tmp_path: Path):
+    """A real case: a downloaded .xlsx that isn't actually a valid zip
+    container (corrupted download, wrong format, etc.) must be recorded
+    as a failure with the filename visible, not raise and stop the
+    entire run."""
+    root = tmp_path / "data"
+    (root / "MM").mkdir(parents=True)
+    corrupt_path = root / "MM" / "corrupt_file.xlsx"
+    corrupt_path.write_text("this is not a real xlsx file")
+
+    report = build_ingestion_report(root)
+
+    assert len(report.successes) == 0
+    assert len(report.failures) == 1
+    assert report.failures[0].file.path.name == "corrupt_file.xlsx"
+    assert "BadZipFile" in report.failures[0].reason
