@@ -1,15 +1,11 @@
 from pathlib import Path
 
-from docx import Document as DocxDocument
-
 from app.ingestion.loaders.fsd_loader import load_fsd_metadata
+from tests.fixtures import write_fsd_docx
 
 
 def _write_docx(path: Path, lines: list[str]) -> None:
-    doc = DocxDocument()
-    for line in lines:
-        doc.add_paragraph(line)
-    doc.save(str(path))
+    write_fsd_docx(path, lines)
 
 
 def test_fsd_without_short_title(tmp_path: Path):

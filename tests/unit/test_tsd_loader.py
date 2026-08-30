@@ -1,28 +1,15 @@
 from pathlib import Path
 
-from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from reportlab.platypus import Paragraph, SimpleDocTemplate
 
 from app.ingestion.loaders.tsd_loader import load_tsd_metadata
+from tests.fixtures import write_tsd_pdf
 
 
 def _write_tsd_pdf(path: Path, title: str, table_rows: list[list[str]]) -> None:
-    doc = SimpleDocTemplate(str(path), pagesize=letter)
-    styles = getSampleStyleSheet()
-    elements = [
-        Paragraph("SHANGRILA FOODS (PRIVATE) LIMITED", styles["Normal"]),
-        Paragraph("The Food Experts!", styles["Normal"]),
-        Paragraph("TECHNICAL SPECIFICATION DOCUMENT", styles["Normal"]),
-        Spacer(1, 12),
-        Paragraph(title, styles["Normal"]),
-        Spacer(1, 12),
-    ]
-    table = Table(table_rows)
-    table.setStyle(TableStyle([("GRID", (0, 0), (-1, -1), 0.5, colors.black)]))
-    elements.append(table)
-    doc.build(elements)
+    write_tsd_pdf(path, title, table_rows)
 
 
 def test_tsd_co_style_badi_labels(tmp_path: Path):
