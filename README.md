@@ -11,11 +11,10 @@ final state).
 ## Status
 
 Configuration & Metadata Schema: done, tested.
-Document Discovery & Loaders: done, tested against synthetic fixtures
-matching real cross-module samples - **not yet run against the actual
-Shangrilla files**. Do that early once this is set up; PDF/docx text
-extraction can behave differently on real files than on the synthetic
-ones used here.
+Document Discovery & Loaders: done, tested against synthetic fixtures.
+Ingestion validation script (`scripts/validate_ingestion.py`): done -
+run this against your real `SHANGRILLA_DATA_ROOT` before trusting
+anything built on top of ingestion.
 
 Next: Chunking & Vector Indexing.
 
@@ -39,6 +38,13 @@ Next: Chunking & Vector Indexing.
    ```
    pytest
    ```
+6. Point the pipeline at your real documents:
+   ```
+   python3 scripts/validate_ingestion.py
+   ```
+   Prints a summary of what was discovered, what loaded successfully,
+   what failed validation and why, what was skipped, and any
+   document_id collisions (likely duplicate/revised files).
 
 ## Project structure
 
