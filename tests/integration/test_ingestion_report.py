@@ -86,6 +86,11 @@ def test_full_ingestion_report_end_to_end(tmp_path: Path):
     assert collision.document_id == "mm-e-007-tsd"
     assert len(collision.files) == 2
 
+    # 4 successes, but one collision -> 3 resolved for indexing, 1 superseded
+    assert len(report.resolved) == 3
+    assert len(report.superseded) == 1
+    assert report.superseded[0].document_id == "mm-e-007-tsd"
+
     failure_names = {f.file.path.name for f in report.failures}
     assert "Purchase_Order.xlsx" in failure_names
 
