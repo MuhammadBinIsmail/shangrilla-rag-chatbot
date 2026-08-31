@@ -1,0 +1,22 @@
+# Explicit overrides for document_id collisions where automatic
+# (most-recently-modified) resolution was confirmed wrong by manual
+# review - all 158 files were downloaded in one batch, so mtime
+# mostly reflects download order, not real authoring history.
+#
+# Keyed by document_id, value is the filename (not path) to keep.
+# See docs/architecture.md, Round 5, for the review behind these.
+
+overrides:
+  fi-mm-ap-030-fsd: "FI-MM-AP-030 FSD_F-47_Workflow.docx"
+  pp-i-002-fsd: "FSD - PP_I_002 - Product Priority - Interface - Changed V1.1.docx"
+
+# Not resolvable by any filename/timestamp policy - these need the
+# SOURCE FILE's internal WRICEF ID field corrected by a human:
+#   qm-f-02-fsd: "FSD - QM-F-06 - QM - Local 1.docx" contains WRICEF
+#     ID "QM-F-02" internally, not "QM-F-06" - QM-F-06 currently has
+#     no correctly-tagged FSD.
+#   qm-f-06-fsd: "FSD - QM-F-07 - QM - Local 2 (Without Qty).docx"
+#     contains "QM-F-06" internally - QM-F-07 has no correctly-tagged
+#     FSD.
+#   co-ce-002-fsd: "CO-CE-003.docx" contains "CO-CE-002" internally -
+#     CO-CE-003 has no correctly-tagged FSD.

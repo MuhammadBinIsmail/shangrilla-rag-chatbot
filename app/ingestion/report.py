@@ -7,11 +7,23 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
+import yaml
+
 from app.ingestion.discovery import DiscoveredFile, discover
 from app.ingestion.loaders.fsd_loader import load_fsd_metadata
 from app.ingestion.loaders.tsd_loader import load_tsd_metadata
 from app.ingestion.loaders.xlsx_loader import load_fsd_metadata_xlsx
 from app.ingestion.metadata.normalize import build_document_id
+
+_OVERRIDES_PATH = Path(__file__).resolve().parents[2] / "app" / "config" / "collision_overrides.yaml"
+
+
+def _load_overrides(path: Path = _OVERRIDES_PATH) -> dict[str, str]:
+    if not path.is_file():
+        return {}
+    with path.open("r", encoding="utf-8") as f:
+        data = yaml.safe_load(f) or {}
+    return data.get("overrides", {})
 
 
 @dataclass
@@ -40,12 +52,18 @@ class Superseded:
     document_id: str
 
 
-def resolve_collisions(successes: list[LoadSuccess]) -> tuple[list[LoadSuccess], list[Superseded]]:
-    """Deterministic tie-break for duplicate document_ids: most
-    recently modified file wins. Reasonable default for genuine
-    duplicates/revisions - NOT reliable when content disagrees with
-    filename (see QM-F-06/QM-F-02 mismatch in architecture doc),
-    which still needs manual review regardless of this outcome."""
+def resolve_collisions(
+    successes: list[LoadSuccess], overrides: dict[str, str] | None = None
+) -> tuple[list[LoadSuccess], list[Superseded]]:
+    """Tie-break for duplicate document_ids.
+
+    Explicit overrides (human-reviewed) take priority. Falls back to
+    most-recently-modified file - NOTE: unreliable when a whole corpus
+    was downloaded in one batch, since mtime then reflects download
+    order, not real revision history. Confirmed wrong on 2 real files
+    here; only trust the fallback for genuinely separate edit history.
+    """
+    overrides = overrides or {}
     by_id: dict[str, list[LoadSuccess]] = {}
     for s in successes:
         by_id.setdefault(s.document_id, []).append(s)
@@ -56,7 +74,14 @@ def resolve_collisions(successes: list[LoadSuccess]) -> tuple[list[LoadSuccess],
         if len(group) == 1:
             resolved.append(group[0])
             continue
-        winner = max(group, key=lambda s: s.file.path.stat().st_mtime)
+
+        winner = None
+        preferred_name = overrides.get(doc_id)
+        if preferred_name:
+            winner = next((s for s in group if s.file.path.name == preferred_name), None)
+        if winner is None:
+            winner = max(group, key=lambda s: s.file.path.stat().st_mtime)
+
         resolved.append(winner)
         for s in group:
             if s is not winner:
@@ -148,6 +173,6 @@ def build_ingestion_report(root: Path) -> IngestionReport:
         for doc_id, paths in sorted(id_to_paths.items())
         if len(paths) > 1
     ]
-    report.resolved, report.superseded = resolve_collisions(report.successes)
+    report.resolved, report.superseded = resolve_collisions(report.successes, _load_overrides())
 
     return report
