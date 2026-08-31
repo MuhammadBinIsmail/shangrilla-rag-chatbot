@@ -77,6 +77,39 @@ Real FSD/TSD samples now seen from all seven modules (CO, FI, MM, PP, QM, TM, WM
 
 ---
 
+## Round 5 — Document Discovery & Loaders: Closed Out
+
+Validated against the full real corpus (158 files) across several
+rounds of real-file diagnosis and fixes:
+
+- Round 3-4's assumption that TSD metadata needed pdfplumber table
+  extraction was wrong for most files - PyMuPDF's plain text gives a
+  clean single-column sequence for the majority. Table extraction
+  remains a fallback for the minority that genuinely use a bordered
+  grid (confirmed: PP-I-005, WM_F_001).
+- Landscape and Project Code are NOT always present (confirmed in
+  multiple real files) - both made optional, not required.
+- Field order varies (Landscape can appear before OR after Project
+  Code) - block-end detection anchors on the reliable "TMC Project
+  Manager" signature marker, not on any one field's position.
+- Values and labels both wrap across lines in some files - merged back
+  before pairing, using two narrow, evidence-backed rules (continuation
+  starts with '(' or lowercase = wrapped value; previous line ends
+  with '/' = wrapped compound label).
+- A WRIECF ID typo (one real file) is handled via a config-level label
+  alias, not a code branch.
+
+**Final result: 119/158 succeed.** Every one of the 39 remaining
+failures was individually confirmed as genuinely not an FSD/TSD
+(scanned PDFs with no text layer, Outlook email printouts, working
+spreadsheets, two draft FSDs with no WRICEF ID ever assigned) - not
+parsing bugs. Collision resolution (most recently modified file wins)
+is implemented for genuine duplicates/revisions; two collisions where
+a file's content disagrees with its own filename still need manual
+review, since no automated signal can resolve that correctly.
+
+---
+
 ## A. Requirement Interpretation
 
 | Business statement | Technical requirement |

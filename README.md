@@ -11,17 +11,19 @@ final state).
 ## Status
 
 Configuration & Metadata Schema: done, tested.
-Document Discovery & Loaders: done, tested against synthetic fixtures
-**and validated against the real corpus**. One real bug found and
-fixed: TSD metadata extraction originally assumed a 2D table layout
-needing pdfplumber; a real file proved PyMuPDF's plain text extraction
-already gives a clean single-column label/value sequence, no table
-detection needed. See docs/architecture.md for the diagnostic.
+Document Discovery & Loaders: **done, fully validated against the real
+corpus.** 119/158 real files succeed. Every one of the 39 remaining
+failures is confirmed non-FSD/TSD content (scanned PDFs needing OCR,
+Outlook email printouts, working spreadsheets, 2 draft FSDs with no
+WRICEF ID assigned) - not a parsing bug. See docs/architecture.md for
+the full round-by-round evidence.
 
-Known real-data findings (not code bugs, need manual review):
-a few source documents have internal WRICEF ID fields that don't match
-their filenames (see architecture doc) - flagged by the collision
-detector, worth checking with whoever maintains the SAP docs.
+Collision resolution: implemented. When multiple files share a
+document_id, the most recently modified file wins automatically
+(logged, not silent). Two specific collisions still need manual
+review regardless - a WRICEF ID in a file's content that doesn't match
+its own filename (see architecture doc) - timestamp can't resolve
+that, only a human familiar with the source documents can.
 
 Next: Chunking & Vector Indexing.
 
