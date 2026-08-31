@@ -15,9 +15,12 @@ def clean_value(raw: str) -> str:
 def parse_label_value_lines(lines: list[str], field_config: dict[str, dict]) -> dict[str, str | None]:
     """FSD-style 'LABEL: <value>' lines -> dict keyed by config field names."""
     extracted: dict[str, str | None] = {name: None for name in field_config}
-    label_to_field = {
-        cfg["label"].strip().lower(): name for name, cfg in field_config.items() if cfg.get("label")
-    }
+    label_to_field: dict[str, str] = {}
+    for name, cfg in field_config.items():
+        if cfg.get("label"):
+            label_to_field[cfg["label"].strip().lower()] = name
+        for alias in cfg.get("aliases", []):
+            label_to_field[alias.strip().lower()] = name
 
     wricef_line_index: int | None = None
     for i, line in enumerate(lines):
@@ -42,34 +45,60 @@ def parse_label_value_lines(lines: list[str], field_config: dict[str, dict]) -> 
     return extracted
 
 
+_BLOCK_TERMINATORS = ("tmc", "developed by")  # signature block always follows the metadata
+
+
+def _find_block_end(cleaned: list[str], start_idx: int) -> int:
+    """Field order varies (Landscape before or after Project Code, etc.)
+    so anchor on the reliable signature-block marker instead of any
+    one field's position."""
+    for i in range(start_idx, len(cleaned)):
+        if any(cleaned[i].lower().startswith(t) for t in _BLOCK_TERMINATORS):
+            return i
+    return min(start_idx + 40, len(cleaned))  # fallback cap if marker absent
+
+
+def _merge_wrapped_continuations(cleaned: list[str]) -> list[str]:
+    """Two known wrap patterns, merged back before pairing:
+    - continuation starts with '(' or lowercase -> wrapped value
+      (e.g. 'Transportation Management' / '(TM)...')
+    - previous line ends with '/' -> wrapped compound label
+      (e.g. 'Adobe Form /' / 'Transaction Code')
+    Confirmed against real files TM_I_0014, TM-F-0030, TM_F_0024."""
+    merged: list[str] = []
+    for line in cleaned:
+        if merged and merged[-1].endswith("/"):
+            merged[-1] = f"{merged[-1]} {line}"
+        elif merged and line and (line[0] == "(" or line[0].islower()):
+            merged[-1] = f"{merged[-1]} {line}"
+        else:
+            merged.append(line)
+    return merged
+
+
 def parse_alternating_label_value_pairs(
     lines: list[str], stable_field_config: dict[str, dict]
 ) -> tuple[dict[str, str | None], dict[str, str]]:
     """TSD single-column layout: label line, then its value line, repeating.
 
-    Confirmed against real corpus file TM_F_0008. Breaks if a value
-    wraps across two lines (see PP-I-005 case) - caller falls back to
-    parse_label_value_table when that happens.
+    Confirmed against real corpus files. Falls back to
+    parse_label_value_table when required fields still come back
+    missing (e.g. a genuinely different grid-style document).
     """
     stable: dict[str, str | None] = {name: None for name in stable_field_config}
     label_to_field = {cfg["label"].strip().lower(): name for name, cfg in stable_field_config.items()}
     technical_details: dict[str, str] = {}
 
     wricef_label = stable_field_config["wricef_id"]["label"].strip().lower()
-    landscape_label = stable_field_config["landscape"]["label"].strip().lower()
-    cleaned = [l.strip() for l in lines if l.strip()]
+    cleaned = _merge_wrapped_continuations([l.strip() for l in lines if l.strip()])
 
     start_idx = next((i for i, l in enumerate(cleaned) if l.lower() == wricef_label), None)
     if start_idx is None:
         return stable, technical_details
 
-    end_idx = next(
-        (i for i in range(start_idx, len(cleaned)) if cleaned[i].lower() == landscape_label), None
-    )
-    if end_idx is None or end_idx + 1 >= len(cleaned):
-        return stable, technical_details
+    end_idx = _find_block_end(cleaned, start_idx)
+    block = cleaned[start_idx:end_idx]
 
-    block = cleaned[start_idx : end_idx + 2]
     for i in range(0, len(block) - 1, 2):
         label, value = block[i], block[i + 1]
         field_name = label_to_field.get(label.lower())

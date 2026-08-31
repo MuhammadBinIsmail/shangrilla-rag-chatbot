@@ -169,3 +169,110 @@ def test_grid_layout_falls_back_to_table_extraction(tmp_path: Path):
     assert metadata.wricef_id == "PP-I-005"
     assert metadata.complexity == "High"
     assert metadata.landscape == "S/4HANA Private Cloud (DS4)"
+
+
+def test_real_wm_f_001_missing_landscape():
+    """Real file: no Landscape row at all. Must still succeed -
+    landscape is optional, everything else required is present."""
+    schema = load_schema()
+    stable_config = tsd_stable_field_config(schema)
+
+    # exact pdfplumber extract_tables() output from the real file
+    table_rows = [
+        ["WRICEF ID", "WM_F_001", "Object Type", "Form"],
+        ["SAP Module", "Warehouse Management (WM)", "Form", "ZMM_ISSUE_PICK_FORM"],
+        ["Program", "ZHU_BIN_MIGO_FORM_DRIVER", "T-Code", "ZISPL_PRINT"],
+        ["Project Code", "1073", "Complexity", "Medium"],
+    ]
+    stable, _ = parse_label_value_table(table_rows, stable_config)
+
+    assert stable["wricef_id"] == "WM_F_001"
+    assert stable["complexity"] == "Medium"
+    assert stable["landscape"] is None
+
+
+def test_real_tm_r_0026_landscape_before_project_code():
+    """Real file: Landscape appears BEFORE Project Code, not after -
+    the block-end anchor must not assume a fixed field order."""
+    lines = [
+        "WRICEF ID", "TM_R_0026", "Object Type", "Report (ALV Grid Output)",
+        "SAP Module", "Transportation Management (TM)",
+        "Program Name", "ZFH_DISPATCH_LOAD_RPT",
+        "Complexity", "Medium",
+        "Transaction Code", "ZTM_DLRP",
+        "Landscape", "S/4HANA Private Cloud (DS4)",
+        "Project Code", "1073",
+        "TMC Project Manager", "Customer Project Manager",
+    ]
+    schema = load_schema()
+    stable, technical_details = parse_alternating_label_value_pairs(
+        lines, tsd_stable_field_config(schema)
+    )
+    assert stable["wricef_id"] == "TM_R_0026"
+    assert stable["landscape"] == "S/4HANA Private Cloud (DS4)"
+    assert stable["project_code"] == "1073"
+    assert "TMC Project Manager" not in technical_details
+
+
+def test_real_tm_i_0027_missing_project_code():
+    """Real file: no Project Code field at all - must still succeed."""
+    lines = [
+        "WRICEF ID", "TM-I-0027", "Object Type", "Interface (Automated Email)",
+        "SAP Module", "Transportation (TM)",
+        "Complexity", "Medium",
+        "Landscape", "S/4HANA Private Cloud",
+        "TMC Project Manager", "Customer PM",
+    ]
+    schema = load_schema()
+    stable, _ = parse_alternating_label_value_pairs(lines, tsd_stable_field_config(schema))
+    assert stable["wricef_id"] == "TM-I-0027"
+    assert stable["landscape"] == "S/4HANA Private Cloud"
+    assert stable["project_code"] is None
+
+
+def test_real_tm_i_0014_wrapped_sap_module_value():
+    """Real file: SAP Module's value wraps across two lines
+    ('Transportation Management' / '(TM) - with SD touchpoints').
+    Must merge back into one value, not misread as a new label."""
+    lines = [
+        "WRICEF ID", "TM_I_0014", "Object Type", "Interface (Module Pool + Report)",
+        "SAP Module", "Transportation Management", "(TM) - with SD touchpoints",
+        "Program Name", "ZROUTE_INPUT2",
+        "Complexity", "Medium",
+        "Landscape", "S/4HANA Private Cloud (DS4)",
+        "Project Code", "1073",
+        "TMC Project Manager",
+    ]
+    schema = load_schema()
+    stable, technical_details = parse_alternating_label_value_pairs(
+        lines, tsd_stable_field_config(schema)
+    )
+    assert stable["sap_module"] == "Transportation Management (TM) - with SD touchpoints"
+    assert stable["complexity"] == "Medium"
+    assert stable["project_code"] == "1073"
+    assert technical_details["Program Name"] == "ZROUTE_INPUT2"
+
+
+def test_real_tm_f_0024_wrapped_compound_label():
+    """Real file: label wraps after a trailing slash
+    ('Adobe Form /' / 'Transaction Code'). Must merge into one
+    compound label, not misread as two separate label lines."""
+    lines = [
+        "WRICEF ID", "TM_F_0024", "Object Type", "Report (Adobe Form Output)",
+        "SAP Module", "Transportation Management (TM)",
+        "Program Name", "ZTM_TRANSP_EXP_ADDA_0024",
+        "Adobe Form /", "Transaction Code", "ZTM_EXP_ADDA_FORM",
+        "Complexity", "Medium",
+        "Project Code", "1073",
+        "Landscape", "S/4HANA Private Cloud (DS4)",
+        "TMC Project Manager",
+    ]
+    schema = load_schema()
+    stable, technical_details = parse_alternating_label_value_pairs(
+        lines, tsd_stable_field_config(schema)
+    )
+    assert stable["wricef_id"] == "TM_F_0024"
+    assert stable["complexity"] == "Medium"
+    assert stable["project_code"] == "1073"
+    assert stable["landscape"] == "S/4HANA Private Cloud (DS4)"
+    assert technical_details["Adobe Form / Transaction Code"] == "ZTM_EXP_ADDA_FORM"
