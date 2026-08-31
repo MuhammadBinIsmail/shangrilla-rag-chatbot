@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 from app.ingestion.report import build_ingestion_report
@@ -93,6 +94,32 @@ def test_full_ingestion_report_end_to_end(tmp_path: Path):
 
     failure_names = {f.file.path.name for f in report.failures}
     assert "Purchase_Order.xlsx" in failure_names
+
+
+def test_override_wins_over_mtime(tmp_path: Path):
+    """Real problem this fixes: all files downloaded in one batch, so
+    mtime often reflects download order, not real revision history.
+    An explicit override must beat mtime when present."""
+    from app.ingestion.report import resolve_collisions
+
+    root = tmp_path / "data"
+    older = root / "PP" / "FSD - PP_I_002 - Product Priority.docx"
+    write_fsd_docx(older, ["FUNCTIONAL SPECIFICATION DOCUMENT", "WRICEF ID: PP_I_002"])
+
+    newer_path = root / "PP" / "FSD - PP_I_002 - Changed V1.1.docx"
+    write_fsd_docx(newer_path, ["FUNCTIONAL SPECIFICATION DOCUMENT", "WRICEF ID: PP_I_002"])
+    # force older's mtime to be LATER, simulating the real bad case
+    os.utime(older, (older.stat().st_mtime + 1000, older.stat().st_mtime + 1000))
+
+    report = build_ingestion_report(root)
+    # without override: mtime picks the wrong (older-content) file
+    no_override_resolved, _ = resolve_collisions(report.successes)
+    assert no_override_resolved[0].file.path.name == "FSD - PP_I_002 - Product Priority.docx"
+
+    # with override: the correct file wins regardless of mtime
+    overrides = {"pp-i-002-fsd": "FSD - PP_I_002 - Changed V1.1.docx"}
+    with_override_resolved, _ = resolve_collisions(report.successes, overrides)
+    assert with_override_resolved[0].file.path.name == "FSD - PP_I_002 - Changed V1.1.docx"
 
 
 def test_corrupt_file_is_a_failure_not_a_crash(tmp_path: Path):
