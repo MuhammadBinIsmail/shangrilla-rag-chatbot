@@ -110,6 +110,27 @@ review, since no automated signal can resolve that correctly.
 
 ---
 
+## Round 6 — Gemini API Access: Account-Specific, Not Regional
+
+Hit a `403 PERMISSION_DENIED: Your project has been denied access`
+error when first calling the Gemini embeddings API - persisted across
+a fresh API key, fresh Google Cloud project, enabling the Generative
+Language API explicitly, and removing all key restrictions. Matched
+the exact pattern of several public Gemini API forum/GitHub reports
+(including one from the same city), which all pointed to an
+account-level access flag only resolvable by Google, not a config fix.
+
+Resolved by switching to a different Google account and generating a
+fresh key there - worked immediately, confirming this was tied to the
+specific account, not the region, the project config, or the code.
+Original design (Gemini direct, `gemini-embedding-001`, pinned,
+asymmetric document/query task types) stands unchanged.
+
+Real embedding dimension confirmed via live call: **3072**, matching
+the value already configured in `app/database/models.py`.
+
+---
+
 ## A. Requirement Interpretation
 
 | Business statement | Technical requirement |
