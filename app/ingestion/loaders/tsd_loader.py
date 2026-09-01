@@ -12,7 +12,11 @@ import pdfplumber
 import pymupdf
 
 from app.config.schema_loader import load_schema, tsd_stable_field_config
-from app.ingestion.loaders.common import parse_alternating_label_value_pairs, parse_label_value_table
+from app.ingestion.loaders.common import (
+    _find_block_end,
+    parse_alternating_label_value_pairs,
+    parse_label_value_table,
+)
 from app.ingestion.metadata.models import TSDMetadata
 
 _HEADING_MARKER = "TECHNICAL SPECIFICATION"
@@ -48,6 +52,22 @@ def _load_via_table(path: Path, stable_config: dict) -> tuple[dict, dict]:
     if not tables:
         return {name: None for name in stable_config}, {}
     return parse_label_value_table(tables[0], stable_config)
+
+
+def extract_tsd_body_text(path: Path) -> list[str]:
+    """Content after the metadata block on page 1, plus all subsequent
+    pages. Note: real TSDs seen so far are mostly single-page with
+    little beyond metadata + signature block - this may return very
+    little for those, which is expected, not a bug."""
+    with pymupdf.open(str(path)) as pdf:
+        page1_lines = [l.strip() for l in pdf[0].get_text().splitlines() if l.strip()]
+        rest_pages = "\n".join(pdf[i].get_text() for i in range(1, len(pdf)))
+
+    end_idx = _find_block_end(page1_lines, 0)
+    body = page1_lines[end_idx:]
+    if rest_pages.strip():
+        body.extend(l.strip() for l in rest_pages.splitlines() if l.strip())
+    return body
 
 
 def load_tsd_metadata(path: Path, schema: dict | None = None) -> TSDMetadata | None:
