@@ -4,6 +4,11 @@ Pinned model (never auto-routed - embedding consistency matters more
 than flexibility, see docs/architecture.md). Uses asymmetric task
 types: documents and queries get embedded differently, which is
 standard practice for retrieval quality with Gemini's embedding API.
+
+vertexai=False is explicit, not a default - the SDK was observed
+silently switching between the direct Gemini API and Vertex AI
+(different product, different quota pool) depending on ambient
+environment detection. Forcing direct API only.
 """
 from __future__ import annotations
 
@@ -17,7 +22,10 @@ EMBEDDING_MODEL = "gemini-embedding-001"
 
 class GeminiEmbeddingClient:
     def __init__(self, api_key: str | None = None):
-        self._client = genai.Client(api_key=api_key or os.environ["GEMINI_API_KEY"])
+        self._client = genai.Client(
+            api_key=api_key or os.environ["GEMINI_API_KEY"],
+            vertexai=False,
+        )
 
     def embed_documents(self, texts: list[str]) -> list[list[float]]:
         return self._embed(texts, task_type="RETRIEVAL_DOCUMENT")
