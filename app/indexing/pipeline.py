@@ -87,19 +87,43 @@ def index_document(
     return len(chunk_rows)
 
 
-def run_indexing(root: Path, store, embedding_client: GeminiEmbeddingClient) -> dict[str, int]:
+def run_indexing(
+    root: Path,
+    store,
+    embedding_client: GeminiEmbeddingClient,
+    skip_existing: bool = True,
+    delay_seconds: float = 0.0,
+) -> dict[str, int]:
     """Runs discovery + collision resolution (M2), then indexes every
-    resolved document. Returns summary counts."""
+    resolved document. Skips documents already in the store by default
+    (resumable after a rate-limit or other mid-run failure) - pass
+    skip_existing=False to force full re-indexing.
+    """
+    import time
+
     report = build_ingestion_report(root)
-    stats = {"documents_indexed": 0, "chunks_indexed": 0, "documents_failed": 0}
+    stats = {
+        "documents_indexed": 0,
+        "documents_skipped": 0,
+        "chunks_indexed": 0,
+        "documents_failed": 0,
+    }
 
     for success in report.resolved:
+        if skip_existing and store.document_exists(success.document_id):
+            stats["documents_skipped"] += 1
+            continue
+
         try:
             n = index_document(store, embedding_client, success.file, success.document_id)
             stats["documents_indexed"] += 1
             stats["chunks_indexed"] += n
         except Exception as exc:
             stats["documents_failed"] += 1
+            store.rollback()
             print(f"Failed to index {success.file.path.name}: {exc}")
+
+        if delay_seconds:
+            time.sleep(delay_seconds)
 
     return stats

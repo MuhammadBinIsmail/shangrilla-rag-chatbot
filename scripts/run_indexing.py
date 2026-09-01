@@ -38,12 +38,18 @@ def main() -> None:
     embedder = GeminiEmbeddingClient()
 
     print(f"Indexing {root} ...\n")
-    stats = run_indexing(root, store, embedder)
+    # ~1s between documents keeps us comfortably under the free
+    # tier's 100-requests/minute cap instead of hitting it repeatedly
+    stats = run_indexing(root, store, embedder, delay_seconds=1.0)
 
     print("\n--- Summary ---")
-    print(f"Documents indexed: {stats['documents_indexed']}")
-    print(f"Chunks indexed:    {stats['chunks_indexed']}")
-    print(f"Documents failed:  {stats['documents_failed']}")
+    print(f"Documents indexed:  {stats['documents_indexed']}")
+    print(f"Documents skipped:  {stats['documents_skipped']} (already indexed)")
+    print(f"Chunks indexed:     {stats['chunks_indexed']}")
+    print(f"Documents failed:   {stats['documents_failed']}")
+    if stats["documents_failed"]:
+        print("\nRun this script again - it will skip what already succeeded")
+        print("and only retry what failed.")
 
 
 if __name__ == "__main__":

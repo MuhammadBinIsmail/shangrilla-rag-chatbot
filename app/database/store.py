@@ -13,6 +13,9 @@ class DocumentStore:
     def __init__(self, session: Session):
         self._session = session
 
+    def document_exists(self, document_id: str) -> bool:
+        return self._session.get(Document, document_id) is not None
+
     def upsert_document(self, doc: Document) -> None:
         self._session.merge(doc)
 
@@ -22,3 +25,6 @@ class DocumentStore:
 
     def commit(self) -> None:
         self._session.commit()
+
+    def rollback(self) -> None:
+        self._session.rollback()
