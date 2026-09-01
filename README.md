@@ -11,21 +11,13 @@ final state).
 ## Status
 
 Configuration & Metadata Schema: done, tested.
-Document Discovery & Loaders: **done, fully validated against the real
-corpus.** 119/158 real files succeed. Every one of the 39 remaining
-failures is confirmed non-FSD/TSD content (scanned PDFs needing OCR,
-Outlook email printouts, working spreadsheets, 2 draft FSDs with no
-WRICEF ID assigned) - not a parsing bug. See docs/architecture.md for
-the full round-by-round evidence.
+Document Discovery & Loaders: done, fully validated against the real
+corpus (119/158, all remaining failures confirmed non-bugs).
+Chunking & Vector Indexing: pipeline built and tested (fakes for
+storage/embeddings) - **live Postgres/Gemini verification still
+needed on your end**, run `scripts/run_indexing.py`.
 
-Collision resolution: implemented. When multiple files share a
-document_id, the most recently modified file wins automatically
-(logged, not silent). Two specific collisions still need manual
-review regardless - a WRICEF ID in a file's content that doesn't match
-its own filename (see architecture doc) - timestamp can't resolve
-that, only a human familiar with the source documents can.
-
-Next: Chunking & Vector Indexing.
+Next: Retrieval (querying the index).
 
 ## Local setup
 
@@ -54,6 +46,14 @@ Next: Chunking & Vector Indexing.
    Prints a summary of what was discovered, what loaded successfully,
    what failed validation and why, what was skipped, and any
    document_id collisions (likely duplicate/revised files).
+7. Confirm your embedding dimension matches the configured value:
+   ```
+   python3 scripts/check_embedding_dimension.py
+   ```
+8. Run the full indexing pipeline (chunks + embeddings into Postgres):
+   ```
+   python3 scripts/run_indexing.py
+   ```
 
 ## Project structure
 
