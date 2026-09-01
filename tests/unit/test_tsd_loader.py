@@ -128,6 +128,34 @@ def test_tsd_missing_wricef_id_returns_none(tmp_path: Path):
     assert load_tsd_metadata(path) is None
 
 
+def test_tsd_body_extraction_after_signature_block(tmp_path: Path):
+    """Real evidence: TM_F_0008's page 1 ends right after the
+    signature block, no separate body content - extraction should
+    return that trailing content (here: nothing extra), not crash or
+    re-include the metadata itself."""
+    from app.ingestion.loaders.tsd_loader import extract_tsd_body_text
+
+    path = tmp_path / "single_page.pdf"
+    write_tsd_pdf(
+        path,
+        title="Some TSD",
+        field_pairs=[
+            ("WRICEF ID", "CO-CE-001"),
+            ("Object Type", "Enhancement"),
+            ("SAP Module", "Controlling (CO)"),
+            ("Complexity", "Medium"),
+            ("Project Code", "1073"),
+            ("Landscape", "S/4HANA Private Cloud (DS4)"),
+            ("TMC Project Manager", "Customer Project Manager"),
+        ],
+    )
+    body = extract_tsd_body_text(path)
+    # signature block line itself and everything before it excluded;
+    # nothing follows it here, so body should be empty or near-empty
+    assert "WRICEF ID" not in body
+    assert "CO-CE-001" not in body
+
+
 def test_matches_real_pp_i_005_grid_style_diagnostic():
     """Real corpus file: grid-style table, with a value wrapped
     across two lines (ZHU_PP_WORK_CENTER_MACHI / NE). Single-column

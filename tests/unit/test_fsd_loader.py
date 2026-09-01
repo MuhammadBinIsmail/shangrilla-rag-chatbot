@@ -80,3 +80,39 @@ def test_fsd_missing_wricef_id_returns_none(tmp_path: Path):
     path = tmp_path / "not_really_an_fsd.docx"
     _write_docx(path, ["Just some notes.", "No metadata block here."])
     assert load_fsd_metadata(path) is None
+
+
+def test_fsd_body_extraction_skips_metadata_block(tmp_path: Path):
+    """Body starts right after WRICEF ID (and short_title, if present) -
+    the actual requirement prose, not the header fields."""
+    from app.ingestion.loaders.fsd_loader import extract_fsd_body_lines
+
+    path = tmp_path / "with_body.docx"
+    _write_docx(
+        path,
+        [
+            "FUNCTIONAL SPECIFICATION DOCUMENT",
+            "LOB: <CONTROLLING>",
+            "WRICEF ID: < CO-CE-001 >",
+            "1. Purpose",
+            "This is the real requirement text.",
+        ],
+    )
+    body = extract_fsd_body_lines(path)
+    assert body == ["1. Purpose", "This is the real requirement text."]
+
+
+def test_fsd_real_typo_wriecf_id_alias(tmp_path: Path):
+    """Real file: FSD_F47...docx uses 'WRIECF ID:' (typo), not
+    'WRICEF ID:'. Must still resolve via the configured alias."""
+    path = tmp_path / "typo_style.docx"
+    _write_docx(
+        path,
+        [
+            "Functional Specification Document (FSD)",
+            "WRIECF ID: FI-MM-AP-030",
+        ],
+    )
+    metadata = load_fsd_metadata(path)
+    assert metadata is not None
+    assert metadata.wricef_id == "FI-MM-AP-030"
