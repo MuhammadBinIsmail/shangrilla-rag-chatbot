@@ -1,3 +1,5 @@
+import pytest
+
 from app.ingestion.chunking.section_splitter import chunk_document, split_into_sections
 
 # Real content from FSD_Interface_Asset_to_Vendor_with_VendorName.docx
@@ -63,3 +65,46 @@ def test_short_document_produces_one_chunk_per_section():
     chunks = chunk_document(_REAL_FSD_BODY, max_chars=5000)
     # 5 headings in the sample -> 5 chunks, each well under max_chars
     assert len(chunks) == 5
+
+
+def test_early_sentence_boundary_does_not_cause_runaway_chunking():
+    """Real bug, confirmed to consume unbounded memory: a short
+    sentence early in a window followed by a long run of text with
+    no more periods (plausible in real content - identifier lists,
+    tables) used to pull `end` in so tight that `start` moved
+    BACKWARD on the next iteration - an infinite loop. Hard timeout
+    here means this test fails loudly if that regresses, rather than
+    hanging the whole test suite."""
+    import signal
+
+    def _timeout_handler(signum, frame):
+        raise TimeoutError("chunk_document did not return within 5s - runaway chunking regressed")
+
+    text = "Note. " + ("WORD " * 5000)
+    old_handler = signal.signal(signal.SIGALRM, _timeout_handler)
+    signal.alarm(5)
+    try:
+        chunks = chunk_document(["1. Section", text])
+    finally:
+        signal.alarm(0)
+        signal.signal(signal.SIGALRM, old_handler)
+
+    assert len(chunks) < 50  # should be a handful of chunks, not thousands
+
+
+def test_chunk_document_raises_instead_of_hanging_if_cap_exceeded():
+    """Second, independent guard: even if a future bug reintroduces
+    runaway chunk generation, this must fail fast and loud instead of
+    silently consuming memory forever."""
+    from app.ingestion.chunking.section_splitter import _MAX_CHUNKS_PER_DOCUMENT
+
+    # directly force more than the cap via many distinct sections,
+    # each producing one chunk - simplest way to trigger the guard
+    # without depending on any particular pathological text pattern
+    lines = []
+    for i in range(_MAX_CHUNKS_PER_DOCUMENT + 5):
+        lines.append(f"{i + 1}. Section {i}")
+        lines.append(f"Some content for section {i}.")
+
+    with pytest.raises(ValueError, match="exceeded"):
+        chunk_document(lines)
