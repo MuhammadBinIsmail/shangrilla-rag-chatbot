@@ -15,6 +15,7 @@ _HEADING_PATTERN = re.compile(r"^(?:\d+(?:\.\d+)*\.?|[A-Z]\.)\s+\S")
 
 DEFAULT_MAX_CHARS = 1500
 DEFAULT_OVERLAP_CHARS = 200
+_MAX_CHUNKS_PER_DOCUMENT = 500  # sanity cap - real FSD/TSD content never needs this many
 
 
 @dataclass
@@ -50,24 +51,35 @@ def split_into_sections(lines: list[str]) -> list[tuple[str | None, list[str]]]:
 
 def _chunk_text(text: str, max_chars: int, overlap_chars: int) -> list[str]:
     """Sliding window with overlap, breaking at a sentence boundary
-    where possible instead of mid-word."""
+    where possible.
+
+    Bug fixed here: an early sentence boundary close to `start` used
+    to pull `end` in tight, which could make `end - overlap_chars`
+    land BEFORE `start` - an infinite loop, confirmed to run away to
+    unbounded memory on real content (a short sentence followed by a
+    long run of text with no more periods, e.g. an identifier list).
+    Two independent guards now: (1) only snap to a boundary that keeps
+    at least half of max_chars, (2) `start` is hard-guaranteed to
+    strictly increase every iteration no matter what.
+    """
     if len(text) <= max_chars:
         return [text] if text.strip() else []
 
+    min_chunk_chars = max_chars // 2
     chunks: list[str] = []
     start = 0
     while start < len(text):
         end = min(start + max_chars, len(text))
         if end < len(text):
             boundary = text.rfind(". ", start, end)
-            if boundary > start:
+            if boundary - start > min_chunk_chars:
                 end = boundary + 1
         piece = text[start:end].strip()
         if piece:
             chunks.append(piece)
         if end >= len(text):
             break
-        start = end - overlap_chars
+        start = max(end - overlap_chars, start + 1)  # guaranteed forward progress
     return chunks
 
 
@@ -84,4 +96,11 @@ def chunk_document(
         for piece in _chunk_text(text, max_chars, overlap_chars):
             chunks.append(Chunk(text=piece, section_title=heading, chunk_index=index))
             index += 1
+            if index > _MAX_CHUNKS_PER_DOCUMENT:
+                raise ValueError(
+                    f"chunk_document exceeded {_MAX_CHUNKS_PER_DOCUMENT} chunks - "
+                    "almost certainly a chunking bug, not real content. Aborting "
+                    "here (fast, loud failure) instead of continuing to consume "
+                    "memory indefinitely."
+                )
     return chunks
