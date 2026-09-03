@@ -46,3 +46,28 @@ def test_custom_model_overrides_default():
 
         _, call_kwargs = instance.chat.completions.create.call_args
         assert call_kwargs["model"] == "anthropic/claude-3-haiku"
+
+
+def test_max_tokens_is_capped_not_left_to_model_default():
+    """Real bug this fixes: an unset max_tokens defaulted to the
+    model's max (65535), and OpenRouter rejected the request with a
+    402 because it checks credit balance against that worst case."""
+    with patch("app.llm.openrouter_client.OpenAI") as MockOpenAI:
+        instance = MockOpenAI.return_value
+        instance.chat.completions.create.return_value = _mock_completion("answer")
+
+        OpenRouterClient(api_key="fake").generate("s", "u")
+
+        _, call_kwargs = instance.chat.completions.create.call_args
+        assert call_kwargs["max_tokens"] == 1024
+
+
+def test_custom_max_tokens_overrides_default():
+    with patch("app.llm.openrouter_client.OpenAI") as MockOpenAI:
+        instance = MockOpenAI.return_value
+        instance.chat.completions.create.return_value = _mock_completion("answer")
+
+        OpenRouterClient(api_key="fake", max_tokens=200).generate("s", "u")
+
+        _, call_kwargs = instance.chat.completions.create.call_args
+        assert call_kwargs["max_tokens"] == 200
