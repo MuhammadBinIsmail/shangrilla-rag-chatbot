@@ -19,8 +19,11 @@ bugs found and fixed along the way (see architecture doc): a runaway
 chunking loop that could consume unbounded memory, and Gemini
 rate-limit handling that now backs off using Google's actual
 suggested delay instead of failing outright.
+Retrieval: built and unit-tested (mocked LLM/embeddings) - **live
+verification against your real index still needed**, run
+`scripts/ask.py` and `scripts/test_module_isolation.py`.
 
-Next: Retrieval (querying the index, module-filtered).
+Next: Conversational Memory (multi-turn sessions).
 
 ## Local setup
 
@@ -29,23 +32,42 @@ Next: Retrieval (querying the index, module-filtered).
    - `SHANGRILLA_DATA_ROOT` - path to your local Shangrilla documents folder (must be **outside** this repo)
    - `GEMINI_API_KEY`, `OPENROUTER_API_KEY`
 3. Start Postgres + pgvector:
-
-docker compose up -d
+   ```
+   docker compose up -d
+   ```
 4. Create a virtual environment and install dependencies:
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e ".[dev]"
+   ```
+   python3 -m venv .venv
+   source .venv/bin/activate
+   pip install -e ".[dev]"
+   ```
 5. Run the tests:
-pytest
+   ```
+   pytest
+   ```
 6. Point the pipeline at your real documents:
-python3 scripts/validate_ingestion.py
+   ```
+   python3 scripts/validate_ingestion.py
+   ```
    Prints a summary of what was discovered, what loaded successfully,
    what failed validation and why, what was skipped, and any
    document_id collisions (likely duplicate/revised files).
 7. Confirm your embedding dimension matches the configured value:
-python3 scripts/check_embedding_dimension.py
+   ```
+   python3 scripts/check_embedding_dimension.py
+   ```
 8. Run the full indexing pipeline (chunks + embeddings into Postgres):
-python3 scripts/run_indexing.py
+   ```
+   python3 scripts/run_indexing.py
+   ```
+9. Ask a question against one module:
+   ```
+   python3 scripts/ask.py CO "What triggers the cost estimate check?"
+   ```
+10. Verify cross-module isolation holds on your real data:
+    ```
+    python3 scripts/test_module_isolation.py
+    ```
 
 ## Project structure
 
