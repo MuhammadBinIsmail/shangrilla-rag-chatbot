@@ -330,3 +330,42 @@ app/
 ---
 
 **Next step**: whenever you're ready, send a synthetic (fake-data) sample of one FSD's first-page metadata block and one TSD's — that's the one thing still blocking M1. Everything else is enough to start.
+
+## Round 7 — Chunking & Vector Indexing: Closed Out
+
+**106/106 resolved documents indexed** into Postgres/pgvector with
+real Gemini embeddings - the full pipeline (discover -> load -> chunk ->
+embed -> store) now runs end to end against the real corpus.
+
+Two real bugs found running it for real, both fixed with regression
+tests:
+
+- **Runaway chunking (critical)**: the sliding-window chunker's
+  overlap math could make `start` move backward instead of forward
+  when an early sentence boundary was found close to the window
+  start, followed by a long run of text with no more periods (real
+  case: a short line followed by an identifier list). This produced
+  an unbounded, ever-growing list of near-duplicate chunks - confirmed
+  to consume 40+ GB of swap and get the process killed by macOS.
+  Fixed with two independent guards: only snap to a boundary that
+  keeps at least half the target chunk size, and `start` is now
+  hard-guaranteed to strictly increase every iteration regardless of
+  the boundary logic. A second, independent cap in `chunk_document`
+  aborts loudly if any document ever produces an unreasonable number
+  of chunks, as insurance against any future regression of this bug
+  class.
+- **Rate-limit handling**: the free tier's 100-requests/minute cap
+  was being hit repeatedly with no real backoff, burning through
+  quota windows immediately rather than waiting for them to reset.
+  Fixed by parsing Google's actual suggested `retryDelay` from the
+  429 response and waiting that long (plus a small buffer) before
+  retrying, up to 3 attempts, with a safe fallback when the delay
+  can't be parsed.
+
+Also fixed: the SDK was silently alternating between the direct
+Gemini API and Vertex AI (different product, different quota pool)
+depending on ambient environment detection - `vertexai=False` is now
+explicit. And the pipeline is resumable - a document already
+committed to the store is skipped on the next run, so a mid-run
+failure never means re-embedding (and re-billing quota for) work that
+already succeeded.
