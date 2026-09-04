@@ -50,4 +50,4 @@ def test_models_construct_without_a_live_database():
 
 
 def test_all_tables_registered_on_base_metadata():
-    assert set(Base.metadata.tables.keys()) == {"documents", "chunks"}
+    assert set(Base.metadata.tables.keys()) == {"documents", "chunks", "sessions", "messages"}
