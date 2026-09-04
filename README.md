@@ -23,8 +23,12 @@ Retrieval: **done.** Verified end-to-end on the real index: grounded,
 correctly-cited answers (confirmed against known real content), and
 zero cross-module leakage across all seven modules (10/10 chunks each,
 via `scripts/test_module_isolation.py`).
+Conversational Memory: built and unit-tested (fakes, including the
+critical two-session isolation test) - **live verification against
+your real database still needed**, run `scripts/chat.py` and
+`scripts/test_session_isolation.py`.
 
-Next: Conversational Memory (multi-turn sessions).
+Next: API Layer (FastAPI).
 
 ## Local setup
 
@@ -68,6 +72,14 @@ Next: Conversational Memory (multi-turn sessions).
 10. Verify cross-module isolation holds on your real data:
     ```
     python3 scripts/test_module_isolation.py
+    ```
+11. Have a multi-turn conversation:
+    ```
+    python3 scripts/chat.py CO
+    ```
+12. Verify cross-session isolation holds on your real database:
+    ```
+    python3 scripts/test_session_isolation.py
     ```
 
 ## Project structure

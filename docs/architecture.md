@@ -415,3 +415,26 @@ max output (65535 for gemini-2.5-flash) - OpenRouter checks credit
 balance against that worst case before generating anything, causing
 a 402 even for a small, normal request. Fixed by capping it
 explicitly (default 1024, configurable).
+
+## Round 10 — Conversational Memory: Built, Live Verification Pending
+
+Multi-turn conversation built on top of single-turn retrieval:
+- `app/database/models.py` - added `Session` and `Message` tables.
+- `app/database/session_store.py` - all reads go back to the DB, no
+  conversation state cached in a shared Python object. This is the
+  actual isolation mechanism, not just a design intention.
+- `app/retrieval/conversation.py` - history-aware query reformulation
+  (skipped on turn 1, no history to reformulate from), session-bound
+  module (set once on first message, ignored after), message
+  persistence.
+
+Critical test (fakes, no live DB needed): two sessions, distinct
+injected facts, assert neither's history contains the other's -
+`test_two_sessions_never_share_history_or_module`, passing.
+
+NOT yet verified: the same guarantee on the real, live database -
+that needs `scripts/test_session_isolation.py` run for real, since a
+correct-by-construction guarantee and a confirmed-on-real-data
+guarantee have consistently been treated as different levels of
+confidence throughout this project.
+
