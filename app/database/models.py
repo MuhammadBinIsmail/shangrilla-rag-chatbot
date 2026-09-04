@@ -2,8 +2,8 @@
 for why this is one DB, not a separate vector store.
 
 EMBEDDING_DIMENSIONS is gemini-embedding-001's expected default -
-NOT yet confirmed against a live call. Check len() of a real
-embed_documents() result and adjust here if it differs.
+NOT yet confirmed against a live call. Run
+scripts/check_embedding_dimension.py and adjust here if it differs.
 """
 from __future__ import annotations
 
@@ -51,3 +51,27 @@ class Chunk(Base):
     embedding: Mapped[list[float]] = mapped_column(Vector(EMBEDDING_DIMENSIONS), nullable=False)
 
     document: Mapped[Document] = relationship(back_populates="chunks")
+
+
+class Session(Base):
+    __tablename__ = "sessions"
+
+    session_id: Mapped[str] = mapped_column(String, primary_key=True)
+    module: Mapped[str | None] = mapped_column(String, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+    messages: Mapped[list["Message"]] = relationship(
+        back_populates="session", cascade="all, delete-orphan", order_by="Message.created_at"
+    )
+
+
+class Message(Base):
+    __tablename__ = "messages"
+
+    message_id: Mapped[str] = mapped_column(String, primary_key=True)
+    session_id: Mapped[str] = mapped_column(ForeignKey("sessions.session_id"), nullable=False)
+    role: Mapped[str] = mapped_column(String, nullable=False)  # "user" | "assistant"
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+    session: Mapped[Session] = relationship(back_populates="messages")
