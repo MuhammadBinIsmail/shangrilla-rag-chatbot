@@ -19,9 +19,10 @@ bugs found and fixed along the way (see architecture doc): a runaway
 chunking loop that could consume unbounded memory, and Gemini
 rate-limit handling that now backs off using Google's actual
 suggested delay instead of failing outright.
-Retrieval: built and unit-tested (mocked LLM/embeddings) - **live
-verification against your real index still needed**, run
-`scripts/ask.py` and `scripts/test_module_isolation.py`.
+Retrieval: **done.** Verified end-to-end on the real index: grounded,
+correctly-cited answers (confirmed against known real content), and
+zero cross-module leakage across all seven modules (10/10 chunks each,
+via `scripts/test_module_isolation.py`).
 
 Next: Conversational Memory (multi-turn sessions).
 

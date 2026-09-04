@@ -395,3 +395,23 @@ Postgres instance, since the whole point is confirming the hard SQL
 filter behaves as designed on real data, not just trusting the
 architecture is correct by construction.
 
+
+## Round 9 — Retrieval: Verified on Real Data, Closed Out
+
+`python3 scripts/ask.py CO "What triggers the cost estimate check on process order release?"`
+returned a grounded, correctly-cited answer matching CO-CE-001's real
+content (BAdI `WORKORDER_UPDATE`, method `AT_RELEASE`, order category
+check) - the same file diagnosed character-by-character back in
+Round 3 to fix the original TSD parser design.
+
+`scripts/test_module_isolation.py` against the real index: **all
+seven modules PASS, 10/10 chunks each, 0 leaked.** This was the one
+requirement stated at the very start of this project - verified
+empirically on real data, not just true by architecture.
+
+One real bug found and fixed along the way: `max_tokens` was left
+unset on the OpenRouter generation call, defaulting to the model's
+max output (65535 for gemini-2.5-flash) - OpenRouter checks credit
+balance against that worst case before generating anything, causing
+a 402 even for a small, normal request. Fixed by capping it
+explicitly (default 1024, configurable).
