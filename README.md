@@ -23,10 +23,10 @@ Retrieval: **done.** Verified end-to-end on the real index: grounded,
 correctly-cited answers (confirmed against known real content), and
 zero cross-module leakage across all seven modules (10/10 chunks each,
 via `scripts/test_module_isolation.py`).
-Conversational Memory: built and unit-tested (fakes, including the
-critical two-session isolation test) - **live verification against
-your real database still needed**, run `scripts/chat.py` and
-`scripts/test_session_isolation.py`.
+Conversational Memory: **done.** Verified on the real database: correct
+grounded answers with citations, correct refusal on out-of-scope
+questions (tested against CEO/weather/ML questions - none hallucinated),
+and full session isolation confirmed via `scripts/test_session_isolation.py`.
 
 Next: API Layer (FastAPI).
 

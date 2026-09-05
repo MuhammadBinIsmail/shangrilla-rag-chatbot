@@ -438,3 +438,28 @@ correct-by-construction guarantee and a confirmed-on-real-data
 guarantee have consistently been treated as different levels of
 confidence throughout this project.
 
+
+## Round 11 — Conversational Memory: Verified on Real Data, Closed Out
+
+Real multi-turn session against CO module: a grounded, correctly-cited
+answer on a real technical question (ZME_PROCESS_REQ_CUST,
+ZCL_IM_ME_PROCESS_REQ_CUST - actual CO-CE-003 content), followed by
+three deliberately out-of-scope questions (company CEO, weather,
+machine learning) - all three correctly refused rather than
+hallucinated, confirming the "answer only from context" system prompt
+constraint holds under real use, not just in the happy path.
+
+`scripts/test_session_isolation.py` against the real database: two
+sessions, distinct injected markers, neither leaked into the other,
+modules stayed correctly bound per session. Same guarantee already
+proven with fakes, now confirmed on real data - this project's
+consistent bar for calling something done.
+
+One cosmetic observation, not a bug: retrieval always returns its
+top-k nearest chunks regardless of true relevance (no distance
+threshold), so "sources" are still listed even on questions the LLM
+correctly refused to answer from them. The LLM handles this
+correctly (ignores irrelevant context, says so explicitly), but
+displaying sources alongside an "I don't know" is a little
+misleading. Worth a future refinement (a distance cutoff below which
+sources aren't shown), not urgent.
