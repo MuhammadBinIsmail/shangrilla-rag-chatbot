@@ -17,7 +17,7 @@ from dotenv import load_dotenv
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from app.database.session import get_engine, get_session  # noqa: E402
+from app.database.session import get_engine, get_session, init_db  # noqa: E402
 from app.database.session_store import SessionStore  # noqa: E402
 from app.embeddings.gemini_client import GeminiEmbeddingClient  # noqa: E402
 from app.llm.openrouter_client import OpenRouterClient  # noqa: E402
@@ -39,7 +39,9 @@ def main() -> None:
         print(f"(resume later with: python3 scripts/chat.py {module} --session {session_id})\n")
 
     load_dotenv()
-    db_session = get_session(get_engine())
+    engine = get_engine()
+    init_db(engine)
+    db_session = get_session(engine)
     session_store = SessionStore(db_session)
     embedder = GeminiEmbeddingClient()
     llm = OpenRouterClient()
