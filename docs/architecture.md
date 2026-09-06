@@ -463,3 +463,29 @@ correctly (ignores irrelevant context, says so explicitly), but
 displaying sources alongside an "I don't know" is a little
 misleading. Worth a future refinement (a distance cutoff below which
 sources aren't shown), not urgent.
+
+
+## Round 12 — API Layer: Built, Live Verification Pending
+
+FastAPI app wrapping the conversation pipeline:
+- `app/api/main.py` - `/chat`, `/sessions/{id}/history`, `/modules`,
+  `/health`. Uses the modern `lifespan` context manager (not the
+  deprecated `on_event("startup")`) to set up the engine and client
+  singletons once per process.
+- `app/api/dependencies.py` - DB session is created fresh per request
+  via FastAPI's dependency injection, not shared - the same isolation
+  mechanism from section H, now applied at the HTTP layer specifically
+  because this is where "multiple concurrent requests" first becomes
+  a real possibility rather than a theoretical one.
+
+Tested via FastAPI's TestClient with dependency overrides (fake
+session store, mocked embedder/LLM/answer_query) - no live DB/API
+calls needed for these. Notably, the two-session isolation test from
+Round 10 is now re-proven through the actual HTTP layer
+(`test_two_sessions_isolated_through_the_api`), not just the
+underlying Python function - a request boundary is a meaningfully
+different thing to get right than a function call boundary.
+
+NOT yet verified: a real running server, real concurrent requests,
+real Postgres. That needs `uvicorn app.api.main:app` run for real.
+

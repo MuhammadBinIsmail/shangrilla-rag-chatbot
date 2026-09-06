@@ -27,8 +27,12 @@ Conversational Memory: **done.** Verified on the real database: correct
 grounded answers with citations, correct refusal on out-of-scope
 questions (tested against CEO/weather/ML questions - none hallucinated),
 and full session isolation confirmed via `scripts/test_session_isolation.py`.
+API Layer: built and unit-tested (dependency overrides + fakes,
+including the critical two-session isolation test now proven through
+the HTTP layer) - **live verification with a running server still
+needed**.
 
-Next: API Layer (FastAPI).
+Next: Chat UI (Chainlit).
 
 ## Local setup
 
@@ -81,6 +85,12 @@ Next: API Layer (FastAPI).
     ```
     python3 scripts/test_session_isolation.py
     ```
+13. Run the API server:
+    ```
+    uvicorn app.api.main:app --reload
+    ```
+    Then try it: `curl -X POST http://localhost:8000/chat -H "Content-Type: application/json" -d '{"session_id": "test1", "message": "hello", "module": "CO"}'`
+    Interactive docs at `http://localhost:8000/docs`.
 
 ## Project structure
 
