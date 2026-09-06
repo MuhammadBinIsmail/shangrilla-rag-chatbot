@@ -5,17 +5,20 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 
+from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, HTTPException
 from sqlalchemy.orm import Session as OrmSession
 
-from app.api.dependencies import get_db, get_embedder, get_llm, get_session_store
-from app.api.schemas import ChatRequest, ChatResponse, MessageInfo, SourceInfo
-from app.config.modules import Module
-from app.database.session import get_engine, init_db
-from app.database.session_store import SessionStore
-from app.embeddings.gemini_client import GeminiEmbeddingClient
-from app.llm.openrouter_client import OpenRouterClient
-from app.retrieval.conversation import ask
+load_dotenv()  # every CLI script does this first - missed it here originally
+
+from app.api.dependencies import get_db, get_embedder, get_llm, get_session_store  # noqa: E402
+from app.api.schemas import ChatRequest, ChatResponse, MessageInfo, SourceInfo  # noqa: E402
+from app.config.modules import Module  # noqa: E402
+from app.database.session import get_engine, init_db  # noqa: E402
+from app.database.session_store import SessionStore  # noqa: E402
+from app.embeddings.gemini_client import GeminiEmbeddingClient  # noqa: E402
+from app.llm.openrouter_client import OpenRouterClient  # noqa: E402
+from app.retrieval.conversation import ask  # noqa: E402
 
 _VALID_MODULES = {m.value for m in Module}
 
