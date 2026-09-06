@@ -27,10 +27,11 @@ Conversational Memory: **done.** Verified on the real database: correct
 grounded answers with citations, correct refusal on out-of-scope
 questions (tested against CEO/weather/ML questions - none hallucinated),
 and full session isolation confirmed via `scripts/test_session_isolation.py`.
-API Layer: built and unit-tested (dependency overrides + fakes,
-including the critical two-session isolation test now proven through
-the HTTP layer) - **live verification with a running server still
-needed**.
+API Layer: **done.** Verified with a real running server: correct
+JSON responses, correct grounding and citations, and real section
+titles from actual document body content (first live confirmation the
+chunker's section-splitting works correctly on real body text, not
+just the metadata block).
 
 Next: Chat UI (Chainlit).
 

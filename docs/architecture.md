@@ -489,3 +489,20 @@ different thing to get right than a function call boundary.
 NOT yet verified: a real running server, real concurrent requests,
 real Postgres. That needs `uvicorn app.api.main:app` run for real.
 
+
+## Round 13 — API Layer: Verified on Real Data, Closed Out
+
+Real HTTP round-trip: `curl -X POST /chat` against a running
+`uvicorn` server, real Postgres, real Gemini embeddings, real
+OpenRouter generation. Correct JSON response shape, correct grounded
+answer with citation, and a small but meaningful confirmation - the
+returned section titles (`3.1 LINKED PROCESSES`, `4.4 VALIDATION`,
+`9 TESTING SCENARIOS`) are real headings from TSD_CO-CE-001's actual
+body content, the first live proof that the heading-aware chunker
+(Round 7) works correctly on real document body text, not just the
+synthetic/metadata cases it was tested against directly.
+
+One real bug found and fixed: `app/api/main.py` never called
+`load_dotenv()` - every CLI script does this first, but the API
+module was missed, so `GEMINI_API_KEY` was never actually in the
+environment when uvicorn imported the module directly.
