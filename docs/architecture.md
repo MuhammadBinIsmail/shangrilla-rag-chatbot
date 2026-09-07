@@ -506,3 +506,29 @@ One real bug found and fixed: `app/api/main.py` never called
 `load_dotenv()` - every CLI script does this first, but the API
 module was missed, so `GEMINI_API_KEY` was never actually in the
 environment when uvicorn imported the module directly.
+
+
+## Round 14 — Chat UI: Built, Live Verification Pending
+
+`ui/app.py` - Chainlit UI talking directly to the conversation
+pipeline (not through the FastAPI layer, avoiding an unnecessary
+network hop for a single-process deployment). Module selection via
+`AskActionMessage` buttons (verified against the real 2.12.0 API, not
+assumed), then multi-turn chat with source citations shown as side
+panel elements. Fresh DB session per message, same isolation
+principle as the API layer.
+
+No automated tests - Chainlit has no test utilities, and mocking its
+WebSocket/context internals for a UI this thin would be more fragile
+than valuable. This is the one piece of the project that gets its
+"real evidence" purely from being run and used, not from a test suite
+- consistent with how Docker and live API calls have been treated
+throughout, just with no partial automated coverage possible at all
+here.
+
+Real, separate bug found while wiring this up: adding a new top-level
+`ui/` folder made setuptools' automatic package discovery ambiguous
+(multiple plausible top-level packages: app, tests, scripts, ui,
+docs), breaking `pip install -e`. Fixed by explicitly scoping
+discovery to `app*` in pyproject.toml.
+

@@ -32,8 +32,12 @@ JSON responses, correct grounding and citations, and real section
 titles from actual document body content (first live confirmation the
 chunker's section-splitting works correctly on real body text, not
 just the metadata block).
+Chat UI: built (Chainlit) - **no automated test coverage possible**
+(Chainlit has no test utilities; mocking its WebSocket/context
+internals would be fragile for little value) - needs live
+verification by running it and clicking through.
 
-Next: Chat UI (Chainlit).
+Next: Hardening (retries, edge cases, error handling).
 
 ## Local setup
 
@@ -92,6 +96,11 @@ Next: Chat UI (Chainlit).
     ```
     Then try it: `curl -X POST http://localhost:8000/chat -H "Content-Type: application/json" -d '{"session_id": "test1", "message": "hello", "module": "CO"}'`
     Interactive docs at `http://localhost:8000/docs`.
+14. Run the chat UI:
+    ```
+    chainlit run ui/app.py
+    ```
+    Opens in your browser - pick a module, then chat.
 
 ## Project structure
 
