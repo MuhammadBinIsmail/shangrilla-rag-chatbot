@@ -19,10 +19,10 @@ dependencies = [
     "pgvector>=0.3",
     "fastapi>=0.110",
     "uvicorn>=0.30",
+    "chainlit>=2.0",
 ]
 
-# Deps land incrementally, matching the milestone that needs them:
-#   M7 (ui):          chainlit
+# All milestone dependencies now in place.
 
 [project.optional-dependencies]
 dev = [
@@ -37,3 +37,6 @@ testpaths = ["tests"]
 [build-system]
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["app*"]
