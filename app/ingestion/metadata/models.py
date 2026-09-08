@@ -25,8 +25,8 @@ class TSDMetadata(BaseModel):
     object_type: str
     sap_module: str
     complexity: str
-    project_code: str
-    landscape: str
+    project_code: str | None = None
+    landscape: str | None = None
     title: str
     technical_details: dict[str, str] = Field(default_factory=dict)
 

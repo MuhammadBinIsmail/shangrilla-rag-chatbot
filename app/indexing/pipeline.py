@@ -109,11 +109,12 @@ def run_indexing(
         "documents_failed": 0,
     }
 
-    for success in report.resolved:
+    for i, success in enumerate(report.resolved, start=1):
         if skip_existing and store.document_exists(success.document_id):
             stats["documents_skipped"] += 1
             continue
 
+        print(f"[{i}/{len(report.resolved)}] Indexing {success.file.path.name} ...", flush=True)
         try:
             n = index_document(store, embedding_client, success.file, success.document_id)
             stats["documents_indexed"] += 1
@@ -121,7 +122,7 @@ def run_indexing(
         except Exception as exc:
             stats["documents_failed"] += 1
             store.rollback()
-            print(f"Failed to index {success.file.path.name}: {exc}")
+            print(f"  FAILED: {exc}", flush=True)
 
         if delay_seconds:
             time.sleep(delay_seconds)

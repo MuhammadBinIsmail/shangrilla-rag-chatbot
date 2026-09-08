@@ -12,6 +12,7 @@ doc_types:
     fields:
       wricef_id:
         label: "WRICEF ID"
+        aliases: ["WRIECF ID"] # real typo found in one FSD (FI-MM-AP-030)
         required: true # the only field reliable across all seven modules
       lob:
         label: "LOB"
@@ -46,8 +47,11 @@ doc_types:
       object_type:   {label: "Object Type", required: true}
       sap_module:    {label: "SAP Module",  required: true}
       complexity:    {label: "Complexity",  required: true}
-      project_code:  {label: "Project Code", required: true}
-      landscape:     {label: "Landscape",   required: true}
+      project_code:  {label: "Project Code", required: false}
+        # missing entirely in TM_I_0027 and SD_E_001 - real, not a parse bug
+      landscape:     {label: "Landscape",   required: false}
+        # real file WM_F_001 has no Landscape row at all - value is
+        # constant across the project anyway, not worth blocking on
     title:
       position: between_heading_and_table
       required: true
