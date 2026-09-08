@@ -532,3 +532,61 @@ Real, separate bug found while wiring this up: adding a new top-level
 docs), breaking `pip install -e`. Fixed by explicitly scoping
 discovery to `app*` in pyproject.toml.
 
+
+## Round 15 — Chat UI: Verified Live, Closed Out
+
+Real click-through in the browser against the running Chainlit app,
+real Postgres, real Gemini embeddings, real OpenRouter generation.
+Module-selection buttons rendered correctly; CO module question
+("What triggers the cost estimate check?") answered correctly with
+citation [CO-CE-001]; correct refusal on a context-dependent follow-up
+("who is responsible for step 3?") rather than hallucinating.
+
+Two independent browser sessions (a normal tab plus an incognito
+window, to guarantee separate cookie stores rather than two tabs
+sharing one Chainlit session) confirmed full isolation: Session A
+stayed on CO throughout, Session B independently selected FI and its
+"summarize this module" answer cited only FI documents
+(FI-CB-013, FI-AP-038, FI-AA-024, FI-AP-035-1) - no cross-session
+leakage of module or history in either direction. Session B was
+confirmed to start fresh (module-selection prompt shown again) rather
+than silently continuing an existing thread.
+
+Two environment issues along the way, neither a code bug:
+`ui/app.py` collided with the `app` package name once Chainlit
+registered it in `sys.modules` under that name - renamed to
+`ui/chainlit_app.py`. Separately, the dev machine's Python 3.14 +
+outdated Xcode Command Line Tools combination broke `platform.mac_ver()`
+and `pyexpat` system-wide; resolved by updating macOS/CLT and rebuilding
+Python 3.12 from source via Homebrew, not by patching the project.
+
+Next: Hardening (M8) - retries, edge cases, error handling.
+
+## Round 15 — Chat UI: Verified Live, Closed Out
+
+Real click-through in the browser against the running Chainlit app,
+real Postgres, real Gemini embeddings, real OpenRouter generation.
+Module-selection buttons rendered correctly; CO module question
+("What triggers the cost estimate check?") answered correctly with
+citation [CO-CE-001]; correct refusal on a context-dependent follow-up
+("who is responsible for step 3?") rather than hallucinating.
+
+Two independent browser sessions (a normal tab plus an incognito
+window, to guarantee separate cookie stores rather than two tabs
+sharing one Chainlit session) confirmed full isolation: Session A
+stayed on CO throughout, Session B independently selected FI and its
+"summarize this module" answer cited only FI documents
+(FI-CB-013, FI-AP-038, FI-AA-024, FI-AP-035-1) - no cross-session
+leakage of module or history in either direction. Session B was
+confirmed to start fresh (module-selection prompt shown again) rather
+than silently continuing an existing thread.
+
+Two environment issues along the way, neither a code bug:
+`ui/app.py` collided with the `app` package name once Chainlit
+registered it in `sys.modules` under that name - renamed to
+`ui/chainlit_app.py`. Separately, the dev machine's Python 3.14 +
+outdated Xcode Command Line Tools combination broke `platform.mac_ver()`
+and `pyexpat` system-wide; resolved by updating macOS/CLT and rebuilding
+Python 3.12 from source via Homebrew, not by patching the project.
+
+Next: Hardening (M8) - retries, edge cases, error handling.

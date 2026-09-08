@@ -32,10 +32,12 @@ JSON responses, correct grounding and citations, and real section
 titles from actual document body content (first live confirmation the
 chunker's section-splitting works correctly on real body text, not
 just the metadata block).
-Chat UI: built (Chainlit) - **no automated test coverage possible**
-(Chainlit has no test utilities; mocking its WebSocket/context
-internals would be fragile for little value) - needs live
-verification by running it and clicking through.
+Chat UI: **done.** Verified live through the browser:
+module-selection buttons render correctly, grounded answers with
+citations, correct refusal on out-of-scope follow-ups, and two
+independent browser sessions (incognito) confirmed fully isolated -
+different modules, no shared history, no leakage in either
+direction.
 
 Next: Hardening (retries, edge cases, error handling).
 
